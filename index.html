@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bộ Sưu Tập Ảnh</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* Tùy chỉnh thanh cuộn cho đẹp hơn */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f0f0f; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        /* Hiệu ứng hiện ảnh mượt mà */
+        .fade-in { animation: fadeIn 0.6s ease-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Hiệu ứng khi di chuột vào ảnh: Zoom nhẹ */
+        .img-item img {
+            transition: transform 0.5s ease, filter 0.3s ease;
+        }
+        .img-item:hover img {
+            transform: scale(1.03); /* Zoom lên một chút */
+            filter: brightness(1.1); /* Sáng hơn một chút */
+            cursor: zoom-in;
+        }
+    </style>
+</head>
+<body class="bg-black text-gray-300 font-sans antialiased">
+
+    <!-- Header đơn giản -->
+    <header class="fixed top-0 w-full z-40 bg-black/80 backdrop-blur-md border-b border-gray-900">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-xl font-bold text-white tracking-widest uppercase">
+                My Gallery
+            </h1>
+            <a href="https://github.com" target="_blank" class="text-gray-400 hover:text-white transition-colors">
+                <i class="fa-brands fa-github text-xl"></i>
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="pt-24 pb-12 px-2 md:px-4 fade-in min-h-screen">
+        <div class="max-w-[1600px] mx-auto">
+            
+            <!-- Grid ảnh dạng Masonry (So le) -->
+            <!-- Chỉnh columns-1 (mobile), columns-2 (tablet), columns-3 (desktop) -->
+            <div id="gallery-grid" class="columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4">
+                <!-- ẢNH SẼ ĐƯỢC JAVASCRIPT CHÈN VÀO ĐÂY -->
+            </div>
+
+            <!-- Loading (sẽ ẩn đi khi load xong) -->
+            <div id="loader" class="text-center py-10 text-gray-600">
+                <i class="fa-solid fa-circle-notch fa-spin text-2xl"></i>
+            </div>
+
+            <div class="text-center mt-16 text-xs text-gray-600">
+                <p>Simple Photo Gallery</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Lightbox (Xem full màn hình) -->
+    <div id="lightbox" class="fixed inset-0 z-50 bg-black/95 hidden flex justify-center items-center opacity-0 transition-opacity duration-300" onclick="closeLightbox()">
+        <button class="absolute top-5 right-5 text-white/50 hover:text-white text-4xl p-2 z-50 focus:outline-none">
+            &times;
+        </button>
+        <div class="relative max-w-full max-h-full p-2 flex flex-col items-center justify-center">
+            <img id="lightbox-img" src="" class="max-h-[90vh] max-w-[95vw] object-contain shadow-2xl rounded-sm select-none" onclick="event.stopPropagation()">
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // PHẦN CẤU HÌNH: THAY LINK ẢNH CỦA BẠN VÀO DƯỚI ĐÂY
+        // ============================================================
+        
+        const imageList = [
+            // Ảnh 1
+            "https://images.unsplash.com/photo-1493246507139-91e8fad9978e?ixlib=rb-4.0.3&w=1600&q=80",
+            
+            // Ảnh 2
+            "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?ixlib=rb-4.0.3&w=1600&q=80",
+            
+            // Ảnh 3
+            "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-4.0.3&w=1600&q=80",
+            
+            // Ảnh 4
+            "https://images.unsplash.com/photo-1519681393784-d120267933ba?ixlib=rb-4.0.3&w=1600&q=80",
+            
+            // Ảnh 5 - Bạn có thể copy dòng này paste xuống dưới để thêm ảnh mới
+            "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?ixlib=rb-4.0.3&w=1600&q=80",
+
+            // Ảnh dọc (để test layout so le)
+            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?ixlib=rb-4.0.3&w=1000&q=80",
+
+            "https://images.unsplash.com/photo-1506744038136-46273834b3fb?ixlib=rb-4.0.3&w=1600&q=80"
+        ];
+
+        // ============================================================
+        // LOGIC XỬ LÝ (KHÔNG CẦN SỬA PHẦN NÀY)
+        // ============================================================
+
+        const galleryGrid = document.getElementById('gallery-grid');
+        const loader = document.getElementById('loader');
+        const lightbox = document.getElementById('lightbox');
+        const lightboxImg = document.getElementById('lightbox-img');
+
+        function initGallery() {
+            // Ẩn loader
+            loader.style.display = 'none';
+
+            imageList.forEach(url => {
+                // Tạo thẻ chứa ảnh
+                const div = document.createElement('div');
+                div.className = "img-item break-inside-avoid mb-4 overflow-hidden rounded-lg bg-gray-900";
+                
+                // Tạo thẻ ảnh (Chỉ có ảnh, không có text)
+                const img = document.createElement('img');
+                img.src = url;
+                img.loading = "lazy"; // Tải chậm để web mượt hơn
+                img.className = "w-full h-auto block transform";
+                img.alt = "Gallery Image";
+                
+                // Sự kiện click mở ảnh lớn
+                div.onclick = () => openLightbox(url);
+
+                div.appendChild(img);
+                galleryGrid.appendChild(div);
+            });
+        }
+
+        function openLightbox(url) {
+            lightboxImg.src = url;
+            lightbox.classList.remove('hidden');
+            // Timeout nhỏ để kích hoạt transition
+            setTimeout(() => {
+                lightbox.classList.remove('opacity-0');
+            }, 10);
+            document.body.style.overflow = 'hidden'; // Khóa cuộn trang
+        }
+
+        function closeLightbox() {
+            lightbox.classList.add('opacity-0');
+            setTimeout(() => {
+                lightbox.classList.add('hidden');
+                lightboxImg.src = ""; 
+            }, 300);
+            document.body.style.overflow = 'auto'; // Mở lại cuộn trang
+        }
+
+        // Đóng bằng phím ESC
+        document.addEventListener('keydown', (e) => {
+            if (e.key === "Escape") closeLightbox();
+        });
+
+        // Chạy hàm khởi tạo khi trang load xong
+        document.addEventListener('DOMContentLoaded', initGallery);
+
+    </script>
+</body>
+</html>
+
+
